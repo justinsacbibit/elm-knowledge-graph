@@ -1,16 +1,19 @@
 module KnowledgeGraph (main) where
 
 import Effects exposing (Never)
+import Html
 import StartApp exposing (start)
-import EntityTableSearchContainer exposing (init, view, update)
 import Task
 
+import EntityTableSearchContainer exposing (init, view, update)
 
+
+app : StartApp.App EntityTableSearchContainer.Model
 app =
     start { init = init, view = view, update = update, inputs = [] }
-    --start { init = init "apple", view = view, update = update, inputs = [] }
 
 
+main : Signal Html.Html
 main = app.html
 
 

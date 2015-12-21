@@ -88,6 +88,7 @@ searchKnowledgeGraph query =
         |> Effects.task
 
 
+(=>) : a -> b -> ( a, b )
 (=>) = (,) -- Black magic operator
 
 
