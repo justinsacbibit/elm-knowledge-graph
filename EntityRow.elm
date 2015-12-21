@@ -3,6 +3,7 @@ module EntityRow where
 import Effects
 import Html exposing (..)
 import Html.Attributes exposing (..)
+import Regex
 import String
 
 
@@ -42,15 +43,15 @@ view : Signal.Address Action -> Model -> Html
 view address model =
     tr []
         [ td []
-            [ text model.name ]
+            [ unescape model.name ]
         , td []
-            [ text (String.join ", " model.types) ]
+            [ unescape (String.join ", " model.types) ]
         , td []
-            [ maybeCell model.description (\desc -> text desc) ]
+            [ maybeCell model.description (\desc -> unescape desc) ]
         , td []
             [ maybeCell model.imageContentUrl (\url -> img [ src url ] []) ]
         , td []
-            [ maybeCell model.detailedDescription (\detail -> text detail.articleBody) ]
+            [ maybeCell model.detailedDescription (\detail -> unescape detail.articleBody) ]
         , td []
             [ maybeCell model.detailedDescription
                 (\detail ->
@@ -62,6 +63,13 @@ view address model =
         , td []
             [ text (toString model.resultScore) ]
         ]
+
+
+unescape : String -> Html
+unescape value =
+    let regex = Regex.regex (Regex.escape "&amp;")
+    in
+       text (Regex.replace Regex.All regex (\_ -> "&") value)
 
 
 maybeCell : Maybe a -> (a -> Html) -> Html

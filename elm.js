@@ -8285,6 +8285,165 @@ Elm.Json.Decode.make = function (_elm) {
                                     ,value: value
                                     ,customDecoder: customDecoder};
 };
+Elm.Native.Regex = {};
+Elm.Native.Regex.make = function(localRuntime) {
+	localRuntime.Native = localRuntime.Native || {};
+	localRuntime.Native.Regex = localRuntime.Native.Regex || {};
+	if (localRuntime.Native.Regex.values)
+	{
+		return localRuntime.Native.Regex.values;
+	}
+	if ('values' in Elm.Native.Regex)
+	{
+		return localRuntime.Native.Regex.values = Elm.Native.Regex.values;
+	}
+
+	var List = Elm.Native.List.make(localRuntime);
+	var Maybe = Elm.Maybe.make(localRuntime);
+
+	function escape(str)
+	{
+		return str.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&');
+	}
+	function caseInsensitive(re)
+	{
+		return new RegExp(re.source, 'gi');
+	}
+	function regex(raw)
+	{
+		return new RegExp(raw, 'g');
+	}
+
+	function contains(re, string)
+	{
+		return string.match(re) !== null;
+	}
+
+	function find(n, re, str)
+	{
+		n = n.ctor === 'All' ? Infinity : n._0;
+		var out = [];
+		var number = 0;
+		var string = str;
+		var lastIndex = re.lastIndex;
+		var prevLastIndex = -1;
+		var result;
+		while (number++ < n && (result = re.exec(string)))
+		{
+			if (prevLastIndex === re.lastIndex) break;
+			var i = result.length - 1;
+			var subs = new Array(i);
+			while (i > 0)
+			{
+				var submatch = result[i];
+				subs[--i] = submatch === undefined
+					? Maybe.Nothing
+					: Maybe.Just(submatch);
+			}
+			out.push({
+				match: result[0],
+				submatches: List.fromArray(subs),
+				index: result.index,
+				number: number
+			});
+			prevLastIndex = re.lastIndex;
+		}
+		re.lastIndex = lastIndex;
+		return List.fromArray(out);
+	}
+
+	function replace(n, re, replacer, string)
+	{
+		n = n.ctor === 'All' ? Infinity : n._0;
+		var count = 0;
+		function jsReplacer(match)
+		{
+			if (count++ >= n)
+			{
+				return match;
+			}
+			var i = arguments.length - 3;
+			var submatches = new Array(i);
+			while (i > 0)
+			{
+				var submatch = arguments[i];
+				submatches[--i] = submatch === undefined
+					? Maybe.Nothing
+					: Maybe.Just(submatch);
+			}
+			return replacer({
+				match: match,
+				submatches: List.fromArray(submatches),
+				index: arguments[i - 1],
+				number: count
+			});
+		}
+		return string.replace(re, jsReplacer);
+	}
+
+	function split(n, re, str)
+	{
+		n = n.ctor === 'All' ? Infinity : n._0;
+		if (n === Infinity)
+		{
+			return List.fromArray(str.split(re));
+		}
+		var string = str;
+		var result;
+		var out = [];
+		var start = re.lastIndex;
+		while (n--)
+		{
+			if (!(result = re.exec(string))) break;
+			out.push(string.slice(start, result.index));
+			start = re.lastIndex;
+		}
+		out.push(string.slice(start));
+		return List.fromArray(out);
+	}
+
+	return Elm.Native.Regex.values = {
+		regex: regex,
+		caseInsensitive: caseInsensitive,
+		escape: escape,
+
+		contains: F2(contains),
+		find: F3(find),
+		replace: F4(replace),
+		split: F3(split)
+	};
+};
+
+Elm.Regex = Elm.Regex || {};
+Elm.Regex.make = function (_elm) {
+   "use strict";
+   _elm.Regex = _elm.Regex || {};
+   if (_elm.Regex.values) return _elm.Regex.values;
+   var _U = Elm.Native.Utils.make(_elm),$Maybe = Elm.Maybe.make(_elm),$Native$Regex = Elm.Native.Regex.make(_elm);
+   var _op = {};
+   var split = $Native$Regex.split;
+   var replace = $Native$Regex.replace;
+   var find = $Native$Regex.find;
+   var AtMost = function (a) {    return {ctor: "AtMost",_0: a};};
+   var All = {ctor: "All"};
+   var Match = F4(function (a,b,c,d) {    return {match: a,submatches: b,index: c,number: d};});
+   var contains = $Native$Regex.contains;
+   var caseInsensitive = $Native$Regex.caseInsensitive;
+   var regex = $Native$Regex.regex;
+   var escape = $Native$Regex.escape;
+   var Regex = {ctor: "Regex"};
+   return _elm.Regex.values = {_op: _op
+                              ,regex: regex
+                              ,escape: escape
+                              ,caseInsensitive: caseInsensitive
+                              ,contains: contains
+                              ,find: find
+                              ,replace: replace
+                              ,split: split
+                              ,Match: Match
+                              ,All: All
+                              ,AtMost: AtMost};
+};
 Elm.Native.Effects = {};
 Elm.Native.Effects.make = function(localRuntime) {
 
@@ -10995,6 +11154,7 @@ Elm.EntityRow.make = function (_elm) {
    $Html$Attributes = Elm.Html.Attributes.make(_elm),
    $List = Elm.List.make(_elm),
    $Maybe = Elm.Maybe.make(_elm),
+   $Regex = Elm.Regex.make(_elm),
    $Result = Elm.Result.make(_elm),
    $Signal = Elm.Signal.make(_elm),
    $String = Elm.String.make(_elm);
@@ -11007,16 +11167,20 @@ Elm.EntityRow.make = function (_elm) {
             return A2($Html.span,_U.list([]),_U.list([]));
          }
    });
+   var unescape = function (value) {
+      var regex = $Regex.regex($Regex.escape("&amp;"));
+      return $Html.text(A4($Regex.replace,$Regex.All,regex,function (_p1) {    return "&";},value));
+   };
    var view = F2(function (address,model) {
       return A2($Html.tr,
       _U.list([]),
-      _U.list([A2($Html.td,_U.list([]),_U.list([$Html.text(model.name)]))
-              ,A2($Html.td,_U.list([]),_U.list([$Html.text(A2($String.join,", ",model.types))]))
-              ,A2($Html.td,_U.list([]),_U.list([A2(maybeCell,model.description,function (desc) {    return $Html.text(desc);})]))
+      _U.list([A2($Html.td,_U.list([]),_U.list([unescape(model.name)]))
+              ,A2($Html.td,_U.list([]),_U.list([unescape(A2($String.join,", ",model.types))]))
+              ,A2($Html.td,_U.list([]),_U.list([A2(maybeCell,model.description,function (desc) {    return unescape(desc);})]))
               ,A2($Html.td,
               _U.list([]),
               _U.list([A2(maybeCell,model.imageContentUrl,function (url) {    return A2($Html.img,_U.list([$Html$Attributes.src(url)]),_U.list([]));})]))
-              ,A2($Html.td,_U.list([]),_U.list([A2(maybeCell,model.detailedDescription,function (detail) {    return $Html.text(detail.articleBody);})]))
+              ,A2($Html.td,_U.list([]),_U.list([A2(maybeCell,model.detailedDescription,function (detail) {    return unescape(detail.articleBody);})]))
               ,A2($Html.td,
               _U.list([]),
               _U.list([A2(maybeCell,
@@ -11030,7 +11194,14 @@ Elm.EntityRow.make = function (_elm) {
    var NoOp = {ctor: "NoOp"};
    var Model = F6(function (a,b,c,d,e,f) {    return {name: a,types: b,description: c,imageContentUrl: d,detailedDescription: e,resultScore: f};});
    var DetailedDescription = F2(function (a,b) {    return {articleBody: a,url: b};});
-   return _elm.EntityRow.values = {_op: _op,DetailedDescription: DetailedDescription,Model: Model,NoOp: NoOp,update: update,view: view,maybeCell: maybeCell};
+   return _elm.EntityRow.values = {_op: _op
+                                  ,DetailedDescription: DetailedDescription
+                                  ,Model: Model
+                                  ,NoOp: NoOp
+                                  ,update: update
+                                  ,view: view
+                                  ,unescape: unescape
+                                  ,maybeCell: maybeCell};
 };
 Elm.EntityTable = Elm.EntityTable || {};
 Elm.EntityTable.make = function (_elm) {
