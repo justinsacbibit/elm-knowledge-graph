@@ -21,9 +21,11 @@ type alias Model =
 
 init : (Model, Effects Action)
 init =
-    ( Model (fst SearchBox.init) Nothing -- TODO: Figure out a nicer way to use SearchBox's init
-    , Effects.none
-    )
+    let (search, fx) = SearchBox.init
+    in
+        ( Model search Nothing
+        , map SearchBox fx
+        )
 
 
 -- UPDATE
@@ -31,7 +33,8 @@ init =
 
 type Action
     = NoOp
-    | Search SearchBox.Action
+    | SearchBox SearchBox.Action
+    | Search String
     | NewEntities (Maybe EntityTable.Model)
 
 
@@ -42,19 +45,22 @@ update action model =
             ( model
             , Effects.none
             )
-        Search searchAction ->
-            let
-                fx = case searchAction of
-                    SearchBox.Query query ->
-                        Effects.none
-                    SearchBox.Search ->
-                        searchKnowledgeGraph model.search.query
 
-                (newSearchBox, searchBoxFx) = SearchBox.update searchAction model.search
+        SearchBox searchAction ->
+            let
+                (searchBox, fx) = SearchBox.update searchAction model.search
             in
-               ( { model | search = newSearchBox }
-               , batch [ fx, map Search searchBoxFx ]
+               ( { model | search = searchBox }
+               , map SearchBox fx
                )
+
+        Search query ->
+            let fx = searchKnowledgeGraph query
+            in
+               ( model
+               , fx
+               )
+
         NewEntities maybeEntities ->
             ( { model | table = maybeEntities }
             , Effects.none
@@ -67,13 +73,18 @@ update action model =
 view : Signal.Address Action -> Model -> Html
 view address model =
     let tableModel = case model.table of
-        Just a ->
+         Just a ->
             a
-        Nothing ->
+         Nothing ->
             []
+
+        context =
+            SearchBox.Context
+                (Signal.forwardTo address SearchBox)
+                (Signal.forwardTo address Search)
     in
         div []
-            [ SearchBox.view (Signal.forwardTo address Search) model.search
+            [ SearchBox.view context model.search
             , EntityTable.view (Signal.forwardTo address (always NoOp)) tableModel
             ]
 

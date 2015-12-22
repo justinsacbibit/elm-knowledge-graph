@@ -44,15 +44,21 @@ update action model =
 
 -- VIEW
 
-view : Signal.Address Action -> Model -> Html
-view address model =
+type alias Context =
+    { actions : Signal.Address Action
+    , search : Signal.Address String
+    }
+
+
+view : Context -> Model -> Html
+view context model =
     div [ class "mui-textfield" ]
         [ input
             [ type' "text"
             , placeholder "Enter a query"
             , value model.query
-            , onEnter address Search
-            , on "input" targetValue (Signal.message address << Query)
+            , onEnter context.search model.query
+            , on "input" targetValue (Signal.message context.actions << Query)
             ]
             []
         ]

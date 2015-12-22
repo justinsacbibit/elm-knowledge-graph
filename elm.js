@@ -11270,6 +11270,7 @@ Elm.SearchBox.make = function (_elm) {
          return A2($Signal.message,address,value);
       });
    });
+   var Context = F2(function (a,b) {    return {actions: a,search: b};});
    var update = F2(function (action,model) {
       var _p1 = action;
       if (_p1.ctor === "Query") {
@@ -11280,20 +11281,29 @@ Elm.SearchBox.make = function (_elm) {
    });
    var Search = {ctor: "Search"};
    var Query = function (a) {    return {ctor: "Query",_0: a};};
-   var view = F2(function (address,model) {
+   var view = F2(function (context,model) {
       return A2($Html.div,
       _U.list([$Html$Attributes.$class("mui-textfield")]),
       _U.list([A2($Html.input,
       _U.list([$Html$Attributes.type$("text")
               ,$Html$Attributes.placeholder("Enter a query")
               ,$Html$Attributes.value(model.query)
-              ,A2(onEnter,address,Search)
-              ,A3($Html$Events.on,"input",$Html$Events.targetValue,function (_p2) {    return A2($Signal.message,address,Query(_p2));})]),
+              ,A2(onEnter,context.search,model.query)
+              ,A3($Html$Events.on,"input",$Html$Events.targetValue,function (_p2) {    return A2($Signal.message,context.actions,Query(_p2));})]),
       _U.list([]))]));
    });
    var Model = function (a) {    return {query: a};};
    var init = {ctor: "_Tuple2",_0: Model(""),_1: $Effects.none};
-   return _elm.SearchBox.values = {_op: _op,Model: Model,init: init,Query: Query,Search: Search,update: update,view: view,onEnter: onEnter,is13: is13};
+   return _elm.SearchBox.values = {_op: _op
+                                  ,Model: Model
+                                  ,init: init
+                                  ,Query: Query
+                                  ,Search: Search
+                                  ,update: update
+                                  ,Context: Context
+                                  ,view: view
+                                  ,onEnter: onEnter
+                                  ,is13: is13};
 };
 Elm.EntityTableSearchContainer = Elm.EntityTableSearchContainer || {};
 Elm.EntityTableSearchContainer.make = function (_elm) {
@@ -11342,39 +11352,39 @@ Elm.EntityTableSearchContainer.make = function (_elm) {
    var NewEntities = function (a) {    return {ctor: "NewEntities",_0: a};};
    var searchKnowledgeGraph = function (query) {    return $Effects.task(A2($Task.map,NewEntities,$Task.toMaybe(A2($Http.get,decodeData,queryUrl(query)))));};
    var Search = function (a) {    return {ctor: "Search",_0: a};};
+   var SearchBox = function (a) {    return {ctor: "SearchBox",_0: a};};
    var update = F2(function (action,model) {
       var _p0 = action;
       switch (_p0.ctor)
       {case "NoOp": return {ctor: "_Tuple2",_0: model,_1: $Effects.none};
-         case "Search": var _p3 = _p0._0;
-           var _p1 = A2($SearchBox.update,_p3,model.search);
-           var newSearchBox = _p1._0;
-           var searchBoxFx = _p1._1;
-           var fx = function () {
-              var _p2 = _p3;
-              if (_p2.ctor === "Query") {
-                    return $Effects.none;
-                 } else {
-                    return searchKnowledgeGraph(model.search.query);
-                 }
-           }();
-           return {ctor: "_Tuple2",_0: _U.update(model,{search: newSearchBox}),_1: $Effects.batch(_U.list([fx,A2($Effects.map,Search,searchBoxFx)]))};
+         case "SearchBox": var _p1 = A2($SearchBox.update,_p0._0,model.search);
+           var searchBox = _p1._0;
+           var fx = _p1._1;
+           return {ctor: "_Tuple2",_0: _U.update(model,{search: searchBox}),_1: A2($Effects.map,SearchBox,fx)};
+         case "Search": var fx = searchKnowledgeGraph(_p0._0);
+           return {ctor: "_Tuple2",_0: model,_1: fx};
          default: return {ctor: "_Tuple2",_0: _U.update(model,{table: _p0._0}),_1: $Effects.none};}
    });
    var NoOp = {ctor: "NoOp"};
    var view = F2(function (address,model) {
-      var tableModel = function () {    var _p4 = model.table;if (_p4.ctor === "Just") {    return _p4._0;} else {    return _U.list([]);}}();
+      var context = A2($SearchBox.Context,A2($Signal.forwardTo,address,SearchBox),A2($Signal.forwardTo,address,Search));
+      var tableModel = function () {    var _p2 = model.table;if (_p2.ctor === "Just") {    return _p2._0;} else {    return _U.list([]);}}();
       return A2($Html.div,
       _U.list([]),
-      _U.list([A2($SearchBox.view,A2($Signal.forwardTo,address,Search),model.search)
-              ,A2($EntityTable.view,A2($Signal.forwardTo,address,$Basics.always(NoOp)),tableModel)]));
+      _U.list([A2($SearchBox.view,context,model.search),A2($EntityTable.view,A2($Signal.forwardTo,address,$Basics.always(NoOp)),tableModel)]));
    });
    var Model = F2(function (a,b) {    return {search: a,table: b};});
-   var init = {ctor: "_Tuple2",_0: A2(Model,$Basics.fst($SearchBox.init),$Maybe.Nothing),_1: $Effects.none};
+   var init = function () {
+      var _p3 = $SearchBox.init;
+      var search = _p3._0;
+      var fx = _p3._1;
+      return {ctor: "_Tuple2",_0: A2(Model,search,$Maybe.Nothing),_1: A2($Effects.map,SearchBox,fx)};
+   }();
    return _elm.EntityTableSearchContainer.values = {_op: _op
                                                    ,Model: Model
                                                    ,init: init
                                                    ,NoOp: NoOp
+                                                   ,SearchBox: SearchBox
                                                    ,Search: Search
                                                    ,NewEntities: NewEntities
                                                    ,update: update
